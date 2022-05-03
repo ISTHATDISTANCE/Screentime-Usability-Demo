@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Screentime Usability demo</string>
+    <string name="brightness"><b>Brightness</b></string>
+    <string name="volume"><b>Volume</b></string>
+    <string name="dark_mode"><b>Dark Mode</b></string>
+    <string name="color_mode"><b>Color Mode</b></string>
+    <string name="animation_scale"><b>Animation Scale</b></string>
+</resources>
