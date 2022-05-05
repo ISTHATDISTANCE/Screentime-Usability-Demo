@@ -12,3 +12,6 @@ This demo is an app that manipluates some common settings of Android phones. Now
 - Animation scale is a [[global setting](https://developer.android.com/reference/android/provider/Settings.Global)], which can only be adjusted in developer mode. So root permission is needed.
 - System dark mode is a system service, but it can only be changed freely on API level 23 through 28. See the issue [[here](https://issuetracker.google.com/issues/173628055?pli=1)]
 - System color mode is a system hidden setting. It does not work above API level 28, too.
+
+## Demo
+https://drive.google.com/file/d/1s1y44Pq7wQosgV0i6uYcuX6hGwnRh14a/view?usp=sharing
