@@ -8,6 +8,8 @@
         <entry key="..\:/Users/ltt50/AndroidStudioProjects/ScreentimeUsabilitydemo/app/src/main/res/drawable/ic_launcher_background.xml" value="0.2265" />
         <entry key="..\:/Users/ltt50/AndroidStudioProjects/ScreentimeUsabilitydemo/app/src/main/res/drawable/progress_bar.xml" value="0.2265" />
         <entry key="..\:/Users/ltt50/AndroidStudioProjects/ScreentimeUsabilitydemo/app/src/main/res/layout/activity_main.xml" value="0.22826086956521738" />
+        <entry key="..\:/Users/ltt50/AndroidStudioProjects/ScreentimeUsabilitydemo/app/src/main/res/layout/overlay_window.xml" value="0.12604166666666666" />
+        <entry key="..\:/Users/ltt50/AndroidStudioProjects/ScreentimeUsabilitydemo/app/src/main/res/layout/popup_window.xml" value="0.12604166666666666" />
       </map>
     </option>
   </component>
