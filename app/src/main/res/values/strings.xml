@@ -5,4 +5,7 @@
     <string name="dark_mode"><b>Dark Mode</b></string>
     <string name="color_mode"><b>Color Mode</b></string>
     <string name="animation_scale"><b>Animation Scale</b></string>
+    <string name="wifi_usage"><b>Wifi Usage</b></string>
+    <string name="blurring_window">Blurring Window</string>
+    <string name="exit_blurring">Exit Blurring</string>
 </resources>

@@ -3,24 +3,37 @@ package com.example.screentimeusabilitydemo;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.app.AppOpsManager;
 import android.app.UiModeManager;
+import android.app.usage.NetworkStats;
+import android.app.usage.NetworkStatsManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
 import android.media.AudioManager;
+import android.net.ConnectivityManager;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
-import android.provider.MediaStore;
+import android.os.RemoteException;
 import android.provider.Settings;
 import android.util.Log;
+import android.view.View;
+import android.widget.Button;
 import android.widget.SeekBar;
 import android.widget.Switch;
+import android.widget.TextView;
 import android.widget.Toast;
 
 
 public class MainActivity extends AppCompatActivity {
+
+    TextView wifiData;
+    private Handler wifiHandler;
+    private Intent overlay;
+    private boolean isOverlay;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -33,12 +46,26 @@ public class MainActivity extends AppCompatActivity {
         SeekBar animationBar = (SeekBar) findViewById(R.id.animiationBar);
         Switch darkModeSW = (Switch) findViewById(R.id.darkModeSW);
         Switch colorModeSW = (Switch) findViewById(R.id.colorModeSW);
+
+        wifiData = (TextView) findViewById(R.id.wifiData);
+        overlay = new Intent(this, ForegroundService.class);
+        isOverlay = false;
+
         brightnessBar.setKeyProgressIncrement(1);
         volumeBar.setKeyProgressIncrement(1);
         animationBar.setKeyProgressIncrement(1);
 
         brightnessBar.setProgress(getCurrentBrightness(MainActivity.this));
         volumeBar.setProgress(getCurrentVolume());
+
+        AppOpsManager appOpsManager = (AppOpsManager) getSystemService(Context.APP_OPS_SERVICE);
+        int mode = appOpsManager.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS, android.os.Process.myUid(), getPackageName());
+        if (mode != AppOpsManager.MODE_ALLOWED) {
+            startActivity(new Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS, Uri.parse(
+                    "package:" + getPackageName()
+            )));
+        }
 
         brightnessBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
             @Override
@@ -91,10 +118,13 @@ public class MainActivity extends AppCompatActivity {
 
         darkModeSW.setOnCheckedChangeListener((compoundButton, b) -> {
             UiModeManager uiModeManager = (UiModeManager) getSystemService(Context.UI_MODE_SERVICE);
+//            uiModeManager.enableCarMode(0);
             if (b) {
                 uiModeManager.setNightMode(UiModeManager.MODE_NIGHT_YES);
+                toast("Night mode enabled");
             } else {
                 uiModeManager.setNightMode(UiModeManager.MODE_NIGHT_NO);
+                toast("Night mode disabled");
             }
         });
 
@@ -132,6 +162,75 @@ public class MainActivity extends AppCompatActivity {
                 changeAnimationScale(MainActivity.this, seekBar.getProgress());
             }
         });
+
+        // Start wifi usage monitoring
+        wifiHandler = new Handler();
+        startCheckingWifiUsage();
+
+        // start overlay
+        checkOverlayPermission();
+
+        Button blurringWindowbtn = (Button) findViewById(R.id.blurringWindowbtn);
+        blurringWindowbtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                startOverlay();
+            }
+        });
+        Button exitBlurring = (Button) findViewById(R.id.exitBlurringBtn);
+        exitBlurring.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                stopOverlay();
+            }
+        });
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        Log.d("APP", "destoryed");
+        stopCheckingWifiUsage();
+
+    }
+
+    // check for permission again when user grants it from
+    // the device settings, and start the service
+//    @Override
+//    protected void onResume() {
+//        super.onResume();
+//        startOverlay();
+//    }
+
+
+    Runnable checkWifi = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                NetworkStatsManager networkStatsManager =
+                        (NetworkStatsManager) getSystemService(
+                                Context.NETWORK_STATS_SERVICE);
+                NetworkStats.Bucket bucket = networkStatsManager.querySummaryForDevice(
+                        ConnectivityManager.TYPE_WIFI, "",
+                        System.currentTimeMillis() - 100, System.currentTimeMillis());
+                wifiData.setText(String.format("Bytes: %d", bucket.getRxBytes()));
+                Log.d("Receive", String.format("%d", bucket.getRxBytes()));
+
+            }
+            catch (RemoteException re) {
+                Log.d("networkStatsManager", "Remote exception");
+            }
+            wifiHandler.postDelayed(checkWifi, 1000);
+        }
+    };
+
+    private void startCheckingWifiUsage() {
+//        new Thread(checkWifi).start();
+        checkWifi.run();
+    }
+
+    private void stopCheckingWifiUsage() {
+        wifiHandler.removeCallbacks(checkWifi);
     }
 
     // ask for writing permission
@@ -207,5 +306,36 @@ public class MainActivity extends AppCompatActivity {
         Settings.Global.putInt(context.getContentResolver(),
                 Settings.Global.ANIMATOR_DURATION_SCALE, scale);
         toast("Change animation scale to " + scale);
+    }
+
+    public void checkOverlayPermission(){
+
+        if (!Settings.canDrawOverlays(this)) {
+            // send user to the device settings
+            Intent myIntent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(myIntent);
+        }
+    }
+
+    public void startOverlay(){
+        // check if the user has already granted
+        // the Draw over other apps permission
+        if(Settings.canDrawOverlays(this)) {
+            // start the service based on the android version
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                startForegroundService(overlay);
+            } else {
+                startService(overlay);
+            }
+            isOverlay = true;
+        }
+    }
+
+    public void stopOverlay() {
+//        if (isOverlay) {
+//            isOverlay = false;
+            stopService(overlay);
+//        }
     }
 }
