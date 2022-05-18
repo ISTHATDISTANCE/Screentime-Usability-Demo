@@ -17,6 +17,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.RemoteException;
+import android.os.VibrationEffect;
+import android.os.Vibrator;
 import android.provider.Settings;
 import android.util.Log;
 import android.view.View;
@@ -184,6 +186,20 @@ public class MainActivity extends AppCompatActivity {
                 stopOverlay();
             }
         });
+
+        Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
+        Button vibrateBtn = (Button) findViewById(R.id.vibrateBtn);
+        vibrateBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                    vibrator.vibrate(VibrationEffect.createOneShot(500, VibrationEffect.DEFAULT_AMPLITUDE));
+                } else {
+                    //deprecated in API 26
+                    vibrator.vibrate(500);
+                }
+            }
+        });
     }
 
     @Override
@@ -220,7 +236,7 @@ public class MainActivity extends AppCompatActivity {
             catch (RemoteException re) {
                 Log.d("networkStatsManager", "Remote exception");
             }
-            wifiHandler.postDelayed(checkWifi, 1000);
+            wifiHandler.postDelayed(checkWifi, 10000);
         }
     };
 

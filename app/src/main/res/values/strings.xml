@@ -8,4 +8,5 @@
     <string name="wifi_usage"><b>Wifi Usage</b></string>
     <string name="blurring_window">Blurring Window</string>
     <string name="exit_blurring">Exit Blurring</string>
+    <string name="vibrate">Vibrate</string>
 </resources>
