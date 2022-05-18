@@ -1,5 +1,5 @@
 # Screentime-Usability-Demo
-This demo is an app that manipluates some common settings of Android phones. Now the settings include brightness, volume, animation scale, system dark mode and color mode.
+This demo is an app that manipluates some common settings of Android phones. Now the settings include brightness, volume, vibration, animation scale, system dark mode and color mode.
 
 ## Installation
 1. Clone the repo and open it with [[Android Studio](https://developer.android.com/studio)].
