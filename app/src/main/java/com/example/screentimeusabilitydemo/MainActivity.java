@@ -1,7 +1,15 @@
 package com.example.screentimeusabilitydemo;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.camera.core.CameraInfo;
+import androidx.camera.core.CameraInfoUnavailableException;
+import androidx.camera.core.CameraSelector;
+import androidx.camera.core.Preview;
+import androidx.camera.lifecycle.ProcessCameraProvider;
+import androidx.core.content.ContextCompat;
+import androidx.lifecycle.LifecycleOwner;
 
 import android.app.AppOpsManager;
 import android.app.UiModeManager;
@@ -10,6 +18,10 @@ import android.app.usage.NetworkStatsManager;
 import android.content.ContentResolver;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
+import android.hardware.camera2.CameraAccessException;
+import android.hardware.camera2.CameraCharacteristics;
+import android.hardware.camera2.CameraManager;
 import android.media.AudioManager;
 import android.net.ConnectivityManager;
 import android.net.Uri;
@@ -27,6 +39,11 @@ import android.widget.SeekBar;
 import android.widget.Switch;
 import android.widget.TextView;
 import android.widget.Toast;
+
+import com.google.common.util.concurrent.ListenableFuture;
+
+import java.util.List;
+import java.util.concurrent.ExecutionException;
 
 
 public class MainActivity extends AppCompatActivity {
@@ -83,14 +100,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onStopTrackingTouch(SeekBar seekBar) {
                 Log.d("Brightness", String.format("Final %d", seekBar.getProgress()));
-                if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                     if (Settings.System.canWrite(getApplicationContext())) {
                         Handler handler = new Handler();
                         handler.post(() -> {
-                           changeBrightness(MainActivity.this,
-                                   Math.round(seekBar.getProgress()));
-                           toast("Current Brightness: "
-                                   + getCurrentBrightness(MainActivity.this));
+                            changeBrightness(MainActivity.this,
+                                    Math.round(seekBar.getProgress()));
+                            toast("Current Brightness: "
+                                    + getCurrentBrightness(MainActivity.this));
                         });
                     } else {
                         getSystemWritingPermission();
@@ -187,6 +204,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
 
+        // Vibration
         Vibrator vibrator = (Vibrator) getSystemService(Context.VIBRATOR_SERVICE);
         Button vibrateBtn = (Button) findViewById(R.id.vibrateBtn);
         vibrateBtn.setOnClickListener(new View.OnClickListener() {
@@ -197,6 +215,19 @@ public class MainActivity extends AppCompatActivity {
                 } else {
                     //deprecated in API 26
                     vibrator.vibrate(500);
+                }
+            }
+        });
+
+        // LED flash
+        Button ledFlashBtn = (Button) findViewById(R.id.ledFlashBtn);
+        ledFlashBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if (getPackageManager().hasSystemFeature(PackageManager.FEATURE_CAMERA_FLASH)) {
+                    startFlash();
+                } else {
+                    toast("No LED flash detected!");
                 }
             }
         });
@@ -228,12 +259,11 @@ public class MainActivity extends AppCompatActivity {
                                 Context.NETWORK_STATS_SERVICE);
                 NetworkStats.Bucket bucket = networkStatsManager.querySummaryForDevice(
                         ConnectivityManager.TYPE_WIFI, "",
-                        System.currentTimeMillis() - 100, System.currentTimeMillis());
+                        0, System.currentTimeMillis());
                 wifiData.setText(String.format("Bytes: %d", bucket.getRxBytes()));
                 Log.d("Receive", String.format("%d", bucket.getRxBytes()));
 
-            }
-            catch (RemoteException re) {
+            } catch (RemoteException re) {
                 Log.d("networkStatsManager", "Remote exception");
             }
             wifiHandler.postDelayed(checkWifi, 10000);
@@ -260,7 +290,7 @@ public class MainActivity extends AppCompatActivity {
                     (dialog, which) -> toast("Permission denied"));
             builder.setPositiveButton(android.R.string.yes, (dialog, which) -> {
                 Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse(
-                    "package:" + getPackageName()
+                        "package:" + getPackageName()
                 ));
                 startActivity(intent);
             });
@@ -295,12 +325,12 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private int getCurrentVolume() {
-        AudioManager audioManager =(AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         return audioManager.getStreamVolume(AudioManager.STREAM_MUSIC);
     }
 
     private void changeVolume(float volume) {
-        AudioManager audioManager =(AudioManager) getSystemService(Context.AUDIO_SERVICE);
+        AudioManager audioManager = (AudioManager) getSystemService(Context.AUDIO_SERVICE);
         int maxVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC);
         if (!audioManager.isVolumeFixed()) {
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC,
@@ -324,7 +354,7 @@ public class MainActivity extends AppCompatActivity {
         toast("Change animation scale to " + scale);
     }
 
-    public void checkOverlayPermission(){
+    public void checkOverlayPermission() {
 
         if (!Settings.canDrawOverlays(this)) {
             // send user to the device settings
@@ -334,10 +364,10 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    public void startOverlay(){
+    public void startOverlay() {
         // check if the user has already granted
         // the Draw over other apps permission
-        if(Settings.canDrawOverlays(this)) {
+        if (Settings.canDrawOverlays(this)) {
             // start the service based on the android version
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 startForegroundService(overlay);
@@ -351,7 +381,45 @@ public class MainActivity extends AppCompatActivity {
     public void stopOverlay() {
 //        if (isOverlay) {
 //            isOverlay = false;
-            stopService(overlay);
+        stopService(overlay);
 //        }
     }
+
+    Runnable flash = new Runnable() {
+        @Override
+        public void run() {
+            try {
+                CameraManager cameraManager = (CameraManager) getSystemService(Context.CAMERA_SERVICE);
+                String[] ids = cameraManager.getCameraIdList();
+                for (String id : ids) {
+                    CameraCharacteristics c = cameraManager.getCameraCharacteristics(id);
+                    Boolean flashAvailable = c.get(CameraCharacteristics.FLASH_INFO_AVAILABLE);
+                    Integer lenFacing = c.get(CameraCharacteristics.LENS_FACING);
+                    if (flashAvailable != null && flashAvailable && lenFacing != null && lenFacing == CameraCharacteristics.LENS_FACING_BACK) {
+                        flashing(cameraManager, id);
+                    }
+                }
+            } catch (CameraAccessException e) {
+                e.printStackTrace();
+            }
+        }
+    };
+
+    private void startFlash() {
+        flash.run();
+    }
+
+    private void flashing(CameraManager cameraManager, String id) {
+        try {
+            for (int i = 0; i < 3; i++) {
+                cameraManager.setTorchMode(id, true);
+                Thread.sleep(1000);
+                cameraManager.setTorchMode(id, false);
+                Thread.sleep(1000);
+            }
+        } catch (CameraAccessException | InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
 }

@@ -9,4 +9,5 @@
     <string name="blurring_window">Blurring Window</string>
     <string name="exit_blurring">Exit Blurring</string>
     <string name="vibrate">Vibrate</string>
+    <string name="LED_flash">LED flash</string>
 </resources>
